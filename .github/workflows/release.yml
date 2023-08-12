@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
+
+permissions:
+   contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.20.4
+
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Get version
+        run: printf "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Build Windows amd64 binary
+        env:
+          GOOS: windows
+          GOARCH: amd64
+        run: go build -o rrg-win-amd64-${{ env.VERSION }}.exe
+
+      - name: Build Linux amd64 binary
+        env:
+          GOOS: linux
+          GOARCH: amd64
+        run: go build -o rrg-linux-amd64-${{ env.VERSION }}
+
+      - name: Build Mac Intel binary
+        env:
+          GOOS: darwin
+          GOARCH: amd64
+        run: go build -o rrg-macos-amd64-${{ env.VERSION }}
+
+      - name: Build Mac M1 binary
+        env:
+          GOOS: darwin
+          GOARCH: arm64
+        run: go build -o rrg-macos-arm64-${{ env.VERSION }}
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          name: Release ${{ env.VERSION }}
+          tag_name: ${{ env.VERSION }}
+          draft: false
+          prerelease: false
+          files: |
+            rrg-macos-arm64-${{ env.VERSION }}
+            rrg-macos-amd64-${{ env.VERSION }}
+            rrg-linux-amd64-${{ env.VERSION }}
+            rrg-win-amd64-${{ env.VERSION }}.exe
